@@ -1,0 +1,712 @@
+#I endpoints for accessing the data at the SPARQL endpoint
+#
+# This is a big file, but don't worry: after about line 200 it's
+# all vocabulary definitions, giving types, short names, and
+# ranges to properties. 
+#
+@base <http://lab.environment.data.gov.au/> .
+@prefix api:     <http://purl.org/linked-data/api/vocab#> .
+
+@prefix dc:      <http://purl.org/dc/elements/1.1/> .
+@prefix geo:     <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix acorn-series: <http://lab.environment.data.gov.au/def/acorn/time-series/> .
+@prefix cube: <http://purl.org/linked-data/cube#> .
+@prefix qb: <http://purl.org/linked-data/cube#> .
+@prefix extras: <http://www.epimorphics.com/vocabularies/lda#> .
+
+
+#new additions to namespaces
+@prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn#> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix bom-station: <http://lab.environment.data.gov.au/def/stations/station/> .
+@prefix wgs84_pos: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix bom-station-data: <http://lab.environment.data.gov.au/id/station/> .
+@prefix gn: <http://www.geonames.org/ontology#> .
+@prefix cc: <http://creativecommons.org/ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix etccdi: <http://purl.oclc.org/NET/ssnx/etccdi#> .
+@prefix interval: <http://reference.data.gov.uk/def/intervals/> .
+@prefix spec: <http://lab.environment.data.gov.au#> .
+@prefix env-api: <http://lab.environment.data.gov.au#> .
+@prefix acorn-sat: <http://lab.environment.data.gov.au/def/acorn/sat/> .
+@prefix rainstate: <http://lab.environment.data.gov.au/def/stations/rainstate/> .
+@prefix rainstate-data: <http://lab.environment.data.gov.au/id/rainstate/> .
+@prefix acorn-series-data: <http://lab.environment.data.gov.au/data/acorn/climate/> .
+@prefix raindist: <http://lab.environment.data.gov.au/def/stations/raindist/> .
+@prefix raindist-data: <http://lab.environment.data.gov.au/id/raindist/> .
+@prefix time-series: <http://lab.environment.data.gov.au/def/acorn/time-series/> .
+@prefix acorn-system: <http://lab.environment.data.gov.au/def/acorn/system/> .
+@prefix acorn-deployment: <http://lab.environment.data.gov.au/def/acorn/deployment/> .
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+#Custom Viewers
+
+spec:sliceViewer a api:Viewer
+   ; api:name "station"
+   ; api:properties "type,maxTemperatureMax,maxTemperatureMin,maxTemperatureMean,maxTemperatureSdev,maxTemperatureCount,minTemperatureMax,minTemperatureMin,minTemperatureMean,minTemperatureSdev,minTemperatureCount,rainfallMax,maxTemperatureCount,minTemperatureCount,rainfallCount,sliceSize,SubSlice.label"
+   .
+
+spec:subSliceViewer a api:Viewer
+   ; api:name "station"
+   ; api:properties "type,maxTemperatureMax,maxTemperatureMin,maxTemperatureMean,maxTemperatureSdev,maxTemperatureCount,minTemperatureMax,minTemperatureMin,minTemperatureMean,minTemperatureSdev,minTemperatureCount,rainfallMax,maxTemperatureCount,minTemperatureCount,rainfallCount,sliceSize,observation"
+   .
+
+spec:observationViewer a api:Viewer
+   ; api:name "station"
+ #  ; api:properties "type,maxTemperature,minTemperature,rainfall,obsyear,obsmonth,obsday,maxTemperatureMissing,minTemperatureMissing,rainfallMissing"
+   ; api:properties "type,maxTemperature,minTemperature,rainfall,obsyear,obsmonth,obsday"
+   .
+
+spec:labelViewer a api:Viewer
+   ; api:name "label"
+   ; api:properties "type,label"
+   .
+
+#VIEWERS
+
+spec:viewerNone a api:Viewer
+    ; api:name "none"
+    .
+
+spec:viewerShort a api:Viewer 
+    ; api:name "short" 
+    ; api:property 
+        rdf:type, rdfs:label, rdfs:Class
+    .
+
+spec:viewerMedium a api:Viewer 
+    ; api:name "medium" 
+    ; api:properties "type.label" 
+    ; api:property 
+        rdfs:label
+        , geo:lat, geo:long
+    .
+
+spec:geoViewer a api:Viewer
+    ; api:name "medium"
+    ; api:properties "label,observedBy.label,observedBy.currentSite.lat, observedBy.currentSite.long"
+    ; api:property 
+        rdfs:label
+    .
+
+#
+# API DESCRIPTION
+#
+
+#<http://54.251.58.90:8080/openrdf-sesame/repositories/acorn-sat-beta> extras:supportsNestedSelect true.
+
+#<http://ec2-54-251-3-66.ap-southeast-1.compute.amazonaws.com/openrdf-sesame/repositories/acorn-sat-native> extras:supportsNestedSelect true.
+
+<http://ec2-54-251-3-66.ap-southeast-1.compute.amazonaws.com:8890/sparql> extras:supportsNestedSelect true.
+
+#<http://ec2-122-248-194-40.ap-southeast-1.compute.amazonaws.com/openrdf-sesame/repositories/acorn-sat-beta> extras:supportsNestedSelect true.
+
+#<http://ec2-54-251-3-66.ap-southeast-1.compute.amazonaws.com:8081/sparql/> extras:supportsNestedSelect false.
+
+
+spec:api a api:API 
+    ; rdfs:label "ACORN SAT API"@en
+    ; api:maxPageSize "150"
+    ; api:defaultPageSize "120" 
+    ; extras:describeThreshold "1"
+    ; rdfs:comment "An API around sparql-provided ACORN-SAT data."
+    #; api:sparqlEndpoint <http://54.251.58.90:8080/openrdf-sesame/repositories/acorn-sat-beta>
+    ; api:sparqlEndpoint <http://ec2-54-251-3-66.ap-southeast-1.compute.amazonaws.com:8890/sparql>
+    # api:sparqlEndpoint <http://ec2-54-251-3-66.ap-southeast-1.compute.amazonaws.com/openrdf-sesame/repositories/acorn-sat-native>
+    #; api:sparqlEndpoint <http://ec2-54-251-3-66.ap-southeast-1.compute.amazonaws.com:8081/sparql/>
+         #
+        ; api:variable
+                [api:name "activeImageBase"; api:value "/images/green/16x16"]
+                , [api:name "inactiveImageBase"; api:value "/images/grey/16x16"]
+                , [api:name "_resourceRoot"; api:value "/"]
+                , [api:name "webapp"; api:value "/"]
+        #
+        # the default html formatter invokes the XSLT stylesheet. It will normally
+        # be pulled in by a browsers default accept-header, but it can be specified
+        # explicitly using the .html suffix on the URI path.
+        #
+        ; api:formatter 
+                [a api:XsltFormatter
+                ; api:name 'html'
+                ; api:stylesheet 'xsltsheets/result-osm.xsl' 
+        # ; api:stylesheet 'xsltsheets/ashtml.xsl'    
+                ; extras:metadataOptions "bindings,formats,versions,execution"
+                ; api:mimeType 'text/html; charset=utf-8'
+                ] 
+        #
+        # as an alternative, a non-default html formatter with the name
+        # 'plainhtml' produces a very simple html rendering of the view.
+        #
+        # the turtle, rdf/xml, and json renderers are builtin and don't
+        # need specification in this config file.
+        #
+        ; api:formatter
+                [a api:HtmlFormatter
+                ; extras:className "com.epimorphics.lda.demo.Demo_HTML_RendererFactory"
+                ; api:name "plainhtml"
+                ; api:mimeType 'text/htmlx'
+                ]
+
+; api:endpoint 
+    spec:data-acorn-climate-slice-station-year-month-list-endpoint
+    ,spec:data-acorn-climate-slice-station-year-list-endpoint
+    ,spec:data-set-item-endpoint
+    ,spec:data-acorn-climate-slice-list-endpoint
+    ,spec:data-acorn-climate-series-seriesid-date-date-item-endpoint
+    ,spec:data-acorn-climate-slice-station-list-endpoint
+    ,spec:data-acorn-climate-slice-station-seriesid-item-endpoint
+    ,spec:id-acorn-deployment-id-deploymentid-phase-phasenumber-item-endpoint
+    ,spec:id-acorn-deployment-id-deploymentid-phase-phasenumber-phasetype-item-endpoint
+    ,spec:data-acorn-climate-slice-station-seriesid-year-list-endpoint
+    ,spec:data-acorn-climate-slice-station-seriesid-year-year-item-endpoint
+    ,spec:data-acorn-climate-slice-station-seriesid-year-year-month-list-endpoint
+    ,spec:data-acorn-climate-slice-station-seriesid-year-year-month-month-item-endpoint
+    ,spec:data-acorn-dataset-item-endpoint
+    ,spec:def-acorn-sat-id-item-endpoint
+    ,spec:def-acorn-time-series-id-item-endpoint
+    ,spec:def-stations-raindist-id-item-endpoint
+    ,spec:def-scheme-item-endpoint
+    ,spec:def-scheme-subscheme-item-endpoint
+    ,spec:def-scheme-subscheme-term-item-endpoint
+    ,spec:id-raindist-id-item-endpoint
+    ,spec:id-rainstate-id-item-endpoint
+    ,spec:id-station-id-item-endpoint
+    ,spec:rainstate-list-endpoint
+    ,spec:raindist-list-endpoint
+    ,spec:id-acorn-system-id-item-endpoint
+    ,spec:id-scheme-item-endpoint
+    ,spec:def-acorn-station-seriesid-item-endpoint
+    ,spec:id-acorn-system-list-endpoint
+      # Magic variables.
+        #
+        # _suppress_ipto, if set to "yes", causes the isPrimaryTopicOf item
+        # endpoints to be suppressed, to avoid tickling a stylesheet infelicity.
+        #
+        ; api:variable [api:name "_suppress_ipto"; api:value "yes"]
+    #
+    # causes property names starting "hasX", with some capital letter
+    # 'X', to start with 'x' instead, to bypass a stylesheet infelicity.
+    #
+    ; api:variable [api:name "_strip_has"; api:value "yes"]        
+    #
+    # don't suppress media-type selection of renderer
+    # (if you need to, set it to "yes")
+    #
+    ; api:variable [api:name "_supress_media_type"; api:value "no"]
+    .
+
+spec:data-acorn-climate-slice-station-year-month-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station/year/month";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/def/acorn/time-series/TimeSeries&sliceStructure=http://lab.environment.data.gov.au/data/acorn/climate/slicekey/station-year-month"];
+    api:viewer spec:labelViewer; 
+    api:defaultViewer spec:labelViewer .
+
+spec:data-acorn-climate-slice-station-year-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station/year";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/def/acorn/time-series/TimeSeries&sliceStructure=http://lab.environment.data.gov.au/data/acorn/climate/slicekey/station-year"];
+    api:viewer spec:labelViewer; 
+    api:defaultViewer spec:labelViewer .
+
+spec:data-acorn-climate-slice-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "data/acorn/climate/slice";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/def/acorn/time-series/TimeSeries&sliceStructure=http://lab.environment.data.gov.au/data/acorn/climate/slicekey/station"];
+    api:viewer spec:geoViewer; 
+    api:defaultViewer spec:geoViewer .
+
+spec:data-acorn-climate-slice-station-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station";
+    api:selector [ api:filter "sliceStructure=http://lab.environment.data.gov.au/data/acorn/climate/slicekey/station"];
+    api:viewer spec:geoViewer; 
+    api:defaultViewer spec:geoViewer .
+
+spec:data-acorn-climate-slice-station-seriesid-year-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station/{seriesid}/year";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/def/acorn/time-series/TimeSeries&sliceStructure=http://lab.environment.data.gov.au/data/acorn/climate/slicekey/station-year&timeSeriesId={seriesid}"];
+    api:viewer spec:labelViewer; 
+    api:defaultViewer spec:labelViewer .
+
+spec:data-acorn-climate-slice-station-seriesid-year-year-month-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station/{seriesid}/year/{year}/month";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/data/acorn/climate/slice/station/{seriesid}/year/{year}/month"];
+    api:viewer spec:labelViewer; 
+    api:defaultViewer spec:labelViewer .
+
+spec:rainstate-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "id/rainstate";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/def/stations/rainstate/RainfallState"];
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:raindist-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "id/raindist";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/def/stations/raindist/RainfallDistrict"];
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-acorn-system-list-endpoint a api:ListEndpoint;
+    api:uriTemplate "id/acorn-system";
+    api:selector [ api:filter "type=http://lab.environment.data.gov.au/def/acorn/system/System"];
+    api:viewer spec:labelViewer; 
+    api:defaultViewer spec:labelViewer .
+
+spec:data-set-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "data/{set}";
+    api:itemTemplate "http://lab.environment.data.gov.au/data/{set}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:data-acorn-climate-series-seriesid-date-date-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "data/acorn/climate/series/{seriesid}/date/{date}";
+    api:itemTemplate "http://lab.environment.data.gov.au/data/acorn/climate/series/{seriesid}/date/{date}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:data-acorn-climate-slice-station-seriesid-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station/{seriesid}";
+    api:itemTemplate "http://lab.environment.data.gov.au/data/acorn/climate/slice/station/{seriesid}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-acorn-deployment-id-deploymentid-phase-phasenumber-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "id/acorn-deployment/id/{deploymentid}/phase/{phasenumber}";
+    api:itemTemplate "http://lab.environment.data.gov.au/id/acorn-deployment/id/{deploymentid}/phase/{phasenumber}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-acorn-deployment-id-deploymentid-phase-phasenumber-phasetype-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "id/acorn-deployment/id/{deploymentid}/phase/{phasenumber}/{phasetype}";
+    api:itemTemplate "http://lab.environment.data.gov.au/id/acorn-deployment/id/{deploymentid}/phase/{phasenumber}/{phasetype}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:data-acorn-climate-slice-station-seriesid-year-year-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station/{seriesid}/year/{year}";
+    api:itemTemplate "http://lab.environment.data.gov.au/data/acorn/climate/slice/station/{seriesid}/year/{year}";
+    api:viewer spec:sliceViewer; 
+    api:defaultViewer spec:sliceViewer .
+
+spec:data-acorn-climate-slice-station-seriesid-year-year-month-month-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "data/acorn/climate/slice/station/{seriesid}/year/{year}/month/{month}";
+    api:itemTemplate "http://lab.environment.data.gov.au/data/acorn/climate/slice/station/{seriesid}/year/{year}/month/{month}";
+    api:viewer spec:subSliceViewer; 
+    api:defaultViewer spec:subSliceViewer .
+
+spec:data-acorn-dataset-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "data/acorn/{dataset}";
+    api:itemTemplate "http://lab.environment.data.gov.au/data/acorn/climate";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+
+spec:def-acorn-sat-id-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "def/acorn/sat/{id}";
+    api:itemTemplate "http://lab.environment.data.gov.au/def/acorn/sat/{id}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:def-acorn-time-series-id-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "def/acorn/time-series/{id}";
+    api:itemTemplate "http://lab.environment.data.gov.au/def/acorn/time-series/{id}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:def-stations-raindist-id-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "def/stations/raindist/{id}";
+    api:itemTemplate "http://lab.environment.data.gov.au/def/stations/raindist/{id}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:def-scheme-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "def/{scheme}";
+    api:itemTemplate "http://lab.environment.data.gov.au/def/{scheme}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:def-scheme-subscheme-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "def/{scheme}/{subscheme}";
+    api:itemTemplate "http://lab.environment.data.gov.au/def/{scheme}/{subscheme}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:def-scheme-subscheme-term-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "def/{scheme}/{subscheme}/{term}";
+    api:itemTemplate "http://lab.environment.data.gov.au/def/{scheme}/{subscheme}/{term}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-raindist-id-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "id/raindist/{id}";
+    api:itemTemplate "http://lab.environment.data.gov.au/id/raindist/{id}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-rainstate-id-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "id/rainstate/{id}";
+    api:itemTemplate "http://lab.environment.data.gov.au/id/rainstate/{id}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-station-id-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "id/station/{id}";
+    api:itemTemplate "http://lab.environment.data.gov.au/id/station/{id}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-acorn-system-id-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "id/acorn-system/{id}";
+    api:itemTemplate "http://lab.environment.data.gov.au/id/acorn-system/{id}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:id-scheme-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "id/{scheme}";
+    api:itemTemplate "http://lab.environment.data.gov.au/id/{scheme}";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+spec:def-acorn-station-seriesid-item-endpoint a api:ItemEndpoint;
+    api:uriTemplate "def/acorn/station/seriesid";
+    api:itemTemplate "http://lab.environment.data.gov.au/def/acorn/station/seriesid";
+    api:viewer api:describeViewer; 
+    api:defaultViewer api:describeViewer .
+
+#
+# VOCABULARY
+#
+# The vocabulary declarations say which properties can be used in queries
+# and by what short name those properties are known. If property P with short
+# name Q has range type T, then a query parameters Q=V is translated to
+# a WHERE clause fragment ?item P V' where V' is a literal which is V
+# with type T. This is especially important for numbers and booleans.
+# 
+
+rdf:type
+    api:label "type"
+    ; rdfs:range rdfs:Class
+    .
+
+rdf:type 
+    api:label "class"
+    ; rdfs:range owl:Class
+    .
+  
+rdfs:label a rdf:Property
+    ; api:label "label" 
+    .
+      
+api:definition a rdf:Property
+    ; api:label "definition"
+    .  
+
+cube:subSlice
+       api:label "SubSlice"
+   ; rdfs:range owl:Class
+   .
+
+acorn-system:currentSite  a rdf:Property;
+        api:label "currentSite"
+        ; rdfs:range owl:Class
+        .
+ssn:observedBy  a rdf:Property;
+        api:label "observedBy"
+        ; rdfs:range owl:Class
+        .
+
+acorn-series:TimeSeries
+     api:label "timeseries" 
+    .
+
+cube:sliceStructure a rdf:Property;
+        api:label "sliceStructure"
+        ; rdfs:range owl:Class
+        .
+
+cube:observation a rdf:Property;
+        api:label "observation"
+        ; rdfs:range owl:Class
+        .
+
+dc:date
+        # a owl:DatatypeProperty
+        # ; rdfs:range xsd:date
+    api:label "date" 
+    .
+
+#newly added
+acorn-sat:dailyPeriod a owl:ObjectProperty ;
+        api:label "dailyPeriod" ;
+        rdfs:range interval:CalendarInterval .
+
+acorn-sat:date a owl:DatatypeProperty ;
+        api:label "obsdate" ;
+        rdfs:range xsd:date .
+
+acorn-sat:day a owl:DatatypeProperty ;
+        api:label "obsday" ;
+        rdfs:range xsd:integer .
+
+acorn-sat:maxTemperature a owl:DatatypeProperty ;
+        api:label "maxTemperature" ;
+        rdfs:range xsd:integer .
+
+acorn-sat:maxTemperatureMissing a owl:DatatypeProperty ;
+        api:label "maxTemperatureMissing" ;
+        rdfs:range xsd:integer .
+
+acorn-sat:minTemperature a owl:DatatypeProperty ;
+        api:label "minTemperature" ;
+        rdfs:range xsd:double .
+
+acorn-sat:minTemperatureMissing a owl:DatatypeProperty ;
+        api:label "minTemperatureMissing" ;
+        rdfs:range xsd:double .
+
+acorn-sat:month a owl:DatatypeProperty ;
+        api:label "obsmonth" ;
+        rdfs:range xsd:integer .
+
+acorn-sat:rainfall a owl:DatatypeProperty ;
+        api:label "rainfall" ;
+        rdfs:range xsd:double .
+
+acorn-series:rainfallMax a owl:DatatypeProperty ;
+        api:label "rainfallMax" ;
+        rdfs:range xsd:double .
+
+acorn-sat:rainfallMissing a owl:DatatypeProperty ;
+        api:label "rainfallMissing" ;
+        rdfs:range xsd:double .
+
+acorn-series:rainfallSum a owl:DatatypeProperty ;
+        api:label "rainfallSum" ;
+        rdfs:range xsd:integer .
+
+acorn-series:rainfallCount a owl:DatatypeProperty ;
+        api:label "rainfallCount" ;
+        rdfs:range xsd:integer .
+
+acorn-sat:year a owl:DatatypeProperty ;
+        api:label "obsyear" ;
+        rdfs:range xsd:double .
+
+etccdi:annualTotalWetDayPrecipitation a owl:DatatypeProperty ;
+        api:label "annualTotalWetDayPrecipitation" ;
+        rdfs:range xsd:double .
+
+etccdi:consecutiveDryDays a owl:DatatypeProperty ;
+        api:label "consecutiveDryDays" ;
+        rdfs:range xsd:double .
+
+etccdi:consecutiveWetDays a owl:DatatypeProperty ;
+        api:label "consecutiveWetDays" ;
+        rdfs:range xsd:double .
+
+acorn-deployment:deploymentid a owl:ObjectProperty ;
+        api:label "deploymentId" ;
+        rdfs:range acorn-series:TimeSeries .
+
+etccdi:diurnalTemperatureRange a owl:DatatypeProperty ;
+        api:label "diurnalTemperatureRange" ;
+        rdfs:range xsd:double .
+
+acorn-series:endDate a owl:ObjectProperty ;
+        api:label "endDate" ;
+        rdfs:range interval:CalendarInstant .
+
+acorn-series:endDay a owl:DatatypeProperty ;
+        api:label "endDay" ;
+        rdfs:range xsd:integer .
+
+acorn-series:endMonth a owl:DatatypeProperty ;
+        api:label "endMonth" ;
+        rdfs:range xsd:integer .
+
+acorn-series:endYear a owl:DatatypeProperty ;
+        api:label "endYear" ;
+        rdfs:range xsd:integer .
+
+etccdi:extremelyWetDays a owl:DatatypeProperty ;
+        api:label "extremelyWetDays" ;
+        rdfs:range xsd:integer .
+
+etccdi:max1DayPrecipitationAmount a owl:DatatypeProperty ;
+        api:label "max1Dayrainfall" ;
+        rdfs:range xsd:double .
+
+etccdi:max5DayPrecipitationAmount a owl:DatatypeProperty ;
+        api:label "max5Dayrainfall" ;
+        rdfs:range xsd:double .
+
+acorn-series:maxTemperatureCount a owl:DatatypeProperty ;
+        api:label "maxTemperatureCount" ;
+        rdfs:range xsd:integer .
+
+etccdi:maxTmax a owl:DatatypeProperty ;
+        api:label "maxTemperatureMax" ;
+        rdfs:range xsd:double .
+
+acorn-series:maxTemperatureMean a owl:DatatypeProperty ;
+        api:label "maxTemperatureMean" ;
+        rdfs:range xsd:double .
+
+etccdi:maxTmin a owl:DatatypeProperty ;
+        api:label "maxTemperatureMin" ;
+        rdfs:range xsd:double .
+
+acorn-series:maxTemperatureSDev a owl:DatatypeProperty ;
+        api:label "maxTemperatureSdev" ;
+        rdfs:range xsd:double .
+
+acorn-series:minTemperatureCount a owl:DatatypeProperty ;
+        api:label "minTemperatureCount" ;
+        rdfs:range xsd:integer .
+
+etccdi:minTmax a owl:DatatypeProperty ;
+        api:label "minTemperatureMax" ;
+        rdfs:range xsd:double .
+
+acorn-series:minTemperatureMean a owl:DatatypeProperty ;
+        api:label "minTemperatureMean" ;
+        rdfs:range xsd:double .
+
+etccdi:minTmin a owl:DatatypeProperty ;
+        api:label "minTemperatureMin" ;
+        rdfs:range xsd:double .
+
+acorn-series:minTemperatureSDev a owl:DatatypeProperty ;
+        api:label "minTemperatureSdev" ;
+        rdfs:range xsd:double .
+
+etccdi:numberOfHeavyPrecipitationDays a owl:DatatypeProperty ;
+        api:label "numberOfHeavyPrecipitationDays" ;
+        rdfs:range xsd:integer .
+
+etccdi:numberOfVeryHeavyPrecipitationDays a owl:DatatypeProperty ;
+        api:label "numberOfVeryHeavyPrecipitationDays" ;
+        rdfs:range xsd:integer .
+
+acorn-series:seriesNotation a owl:DatatypeProperty ;
+        api:label "seriesNotation" ;
+        rdfs:range acorn-series:seriesid .
+
+etccdi:simpleDailyIntensityIndex a owl:DatatypeProperty ;
+        api:label "simpleDailyIntensityIndex" ;
+        rdfs:range xsd:double .
+
+acorn-series:startDate a owl:ObjectProperty ;
+        api:label "startDate" ;
+        rdfs:range interval:CalendarInstant .
+
+acorn-series:startDay a owl:DatatypeProperty ;
+        api:label "startDay" ;
+        rdfs:range xsd:integer .
+
+acorn-series:startMonth a owl:DatatypeProperty ;
+        api:label "startMonth" ;
+        rdfs:range xsd:integer .
+
+acorn-series:startYear a owl:DatatypeProperty ;
+        api:label "startYear" ;
+        rdfs:range xsd:integer .
+
+#acorn-series:timeSeriesId a owl:DatatypeProperty ;
+#        api:label "timeSeriesId" ;
+#        rdfs:range acorn-series:TimeSeries .
+
+acorn-series:timeSeriesId a owl:DatatypeProperty ;
+        api:label "timeSeriesId" .
+
+etccdi:veryWetDays a owl:DatatypeProperty ;
+        api:label "veryWetDays" ;
+        rdfs:range xsd:integer .
+
+bom-station:bomNotation a owl:DatatypeProperty ;
+        api:label "bomNotation" ;
+        rdfs:range bom-station:bomid .
+
+gn:locatedIn a owl:ObjectProperty ;
+        api:label "locatedIn" ;
+        rdfs:range raindist-data:RainfallDistrict .
+
+gn:name a owl:DatatypeProperty ;
+        api:label "name" ;
+        rdfs:range xsd:string .
+
+gn:parentADM1 a owl:ObjectProperty ;
+        api:label "parentADM1" ;
+        rdfs:range rainstate-data:RainfallState .
+
+gn:parentFeature a owl:ObjectProperty ;
+        api:label "parentFeature" ;
+        rdfs:range raindist-data:RainfallDistrict .
+
+raindist-data:raindistNotation a owl:DatatypeProperty ;
+        api:label "raindistNotation" ;
+        rdfs:range raindist-data:raindistid .
+
+rdfs:comment a owl:DatatypeProperty ;
+        api:label "comment" ;
+        rdfs:range xsd:string .
+
+rdfs:isDefinedBy a owl:DatatypeProperty ;
+        api:label "isDefinedBy" ;
+        rdfs:range xsd:anyURI .
+
+skos:altLabel a owl:DatatypeProperty ;
+        api:label "altLabel" ;
+        rdfs:range xsd:string .
+
+skos:description a owl:DatatypeProperty ;
+        api:label "description" ;
+        rdfs:range xsd:string .
+
+skos:note a owl:DatatypeProperty ;
+        api:label "note" ;
+        rdfs:range xsd:string .
+
+skos:prefLabel a owl:DatatypeProperty ;
+        api:label "prefLabel" ;
+        rdfs:range xsd:string .
+
+ssn:observedBy a owl:ObjectProperty ;
+        api:label "observedBy" ;
+        rdfs:range bom-station:Station .
+
+time-series:sliceSize a owl:DatatypeProperty ;
+        api:label "sliceSize" ;
+        rdfs:range xsd:double .
+
+wgs84_pos:lat a owl:DatatypeProperty ;
+        api:label "lat" ;
+        rdfs:range xsd:double .
+
+wgs84_pos:long a owl:DatatypeProperty ;
+        api:label "long" ;
+        rdfs:range xsd:double .
+
+wgs84_pos:alt a owl:DatatypeProperty ;
+        api:label "alt" ;
+        rdfs:range xsd:double .
+
+dct:modified a rdf:Property ;
+        api:label "modified" ;
+        rdfs:range rdfs:Literal .
+
+dct:description a rdf:Property ;
+        api:label "description" ;
+        rdfs:range xsd:string .
+
+dct:license a rdf:Property ;
+        api:label "license" ;
+        rdfs:range dct:LicenseDocument .
+
+void:subset a rdf:Property ;
+        api:label "subset" ;
+        rdfs:range void:Dataset .
+
