@@ -1,0 +1,11 @@
+
+if [ x"${BASHENV_RUN-unset}" = "xunset" ]; then
+	BASHENV_RUN=y
+
+	if [ -e "$HOME"/.bashrc ]; then
+		. "$HOME"/.bashrc
+	elif [ -e /etc/bashrc ]; then
+		. /etc/bashrc
+	fi
+fi
+

@@ -1,0 +1,1 @@
+This temp directory is used for saving and unzipping virtuoso while installing (and may be used for any other temporary purposes). Nothing in this directory should be committed to the Git repository (except for this file).

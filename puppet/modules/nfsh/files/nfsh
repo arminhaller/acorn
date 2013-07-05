@@ -1,0 +1,321 @@
+#!/bin/bash
+
+
+# Set NOLOGIN to an access denied string to shut out all but 90? users
+#NOLOGIN="Access not available.  Please read http://nf.nci.org.au/notices_news/"
+#NOLOGIN="System down - back soon hopefully"
+
+
+if [ -x "/opt/bin/nfsh-$USER" -a x"$0" != x"/opt/bin/nfsh-$USER" ]; then
+	exec -a "$0" "/opt/bin/nfsh-$USER" "$@"
+fi
+
+
+function debug {
+	[ "$DEBUG" ] && ( echo "+ $*" ; "$@" ) >> "$HOME/.nfshdebug"
+}
+
+
+function is_valid_shell {
+	local rc=1
+	local i
+	for i in "${shells[@]}"; do
+		if [ x"$1" = x"$i" ]; then
+			rc=0
+		fi
+	done
+	return $rc
+}
+
+function is_valid_project {
+	local rc=1
+	case "$1" in
+		[a-z][a-z0-9][0-9]|[a-z][a-z0-9][a-z0-9][0-9]) rc=0 ;;
+	esac
+	return $rc
+}
+
+function is_user_project {
+	local rc=1
+	local i
+	for i in "${groups[@]}"; do
+		if [ x"$1" = x"$i" ]; then
+			rc=0
+		fi
+	done
+	return $rc
+}
+
+function is_valid_user_project {
+	is_valid_project "$@" && is_user_project "$@"
+}
+
+function is_interactive {
+	[ x"$interactive" = "xy" ]
+}
+
+function save_rashrc {
+	local tmpfile="$HOME/.rashrc.new-$$"
+	(
+		[ x"$PROJECT" != "x" ] && echo "setenv PROJECT $PROJECT"
+		[ x"$SHELL" != "x" ] && echo "setenv SHELL $SHELL"
+	) > "$tmpfile" && /bin/mv -f "$tmpfile" "$HOME/.rashrc"
+	rm -f "$tmpfile"
+}
+
+function prompt_user {
+	local result="$1"
+	local validator="$2"
+	local title="$3"
+	shift 3
+	until "$validator" "${!result}"; do
+		if dialog --version > /dev/null 2>&1 && [ x"$TERM" != x"dumb" ]; then
+			local dialog_list=()
+			local i
+			for i; do
+				dialog_list+=("$i" "")
+			done
+			eval "$result="'"$(dialog --stdout --no-cancel --menu "$title" 15 60 8 "${dialog_list[@]}")"'
+		else
+			echo ""
+			echo "===== $title ====="
+			local PS3="Make your selection: "
+			eval "select $result; do break; done"
+		fi
+	done
+}
+
+function prompt_user_for_valid_shell {
+	prompt_user SHELL is_valid_shell "Select your shell" "${shells[@]}"
+	save_rashrc
+}
+
+function prompt_user_for_valid_project {
+	prompt_user PROJECT is_valid_user_project "Select your project" "${projects[@]}"
+	save_rashrc
+}
+
+
+function check_validity {
+	local var="$1"
+	local validator="$2"
+	local promptor="$3"
+	shift 3
+
+	local preset_var="preset_$var"
+	local rashrc_var="rashrc_$var"
+	local default_var="DEFAULT_$var"
+
+	if ! "$validator" "${!var}"; then
+		local use_default=n
+		if ! is_interactive; then
+			# Bad non-interactive shells/projects cannot be prompted for.
+			use_default=y
+		elif [ x"${!preset_var}" = x"y" ]; then
+			# It's not appropriate to prompt for a shell/project if the supplied pre-set shell/project is no good.
+			# So, use the rashrc one if possible, otherwise use the default and inform the user.
+			if [ x"${!rashrc_var}" != "x" ] && "$validator" "${!rashrc_var}"; then
+				eval "$var"'="${!rashrc_var}"'
+			else
+				use_default=y
+			fi
+		else
+			"$promptor"
+		fi
+		if [ x"$use_default" = x"y" ]; then
+			echo "nfsh: WARNING: Invalid \$$var value \"${!var}\", using \"${!default_var}\" instead" 1>&2
+			eval "$var"'="${!default_var}"'
+		fi
+	fi
+}
+
+
+
+
+# bail if no home dir
+if [ ! -d $HOME ]; then
+	echo "nfsh: ERROR: No home directory." 1>&2
+	echo "nfsh: Your user account does not appear to be configured correctly." 1>&2
+	echo "nfsh: Please contact help@nf.nci.org.au to have this problem fixed." 1>&2
+	exit 1
+fi
+
+
+# If you want debugging output, name must be nfshtest.
+case "$0" in
+    *test) DEBUG=1;;
+    *) DEBUG=;;
+esac
+
+# Or create a file called DEBUGNFSH in your home directory.
+[ -f $HOME/DEBUGNFSH ] && DEBUG=1;
+
+
+debug date
+debug ulimit -a
+debug env
+
+# Strip domain and trailing digits off hostname to get cluster name
+thishost="$(hostname)"
+thishost="${thishost%%.*}"
+hostbase="$thishost"
+while [ x"$hostbase" != x"${hostbase%[0-9]}" ]; do
+	hostbase="${hostbase%[0-9]}"
+done
+debug echo "On $thishost, cluster is $hostbase"
+
+
+# Users have home dirs in /home/nnn/username. Get the nnn
+# and possibly restrict logins by which department they are in
+hometop="$(dirname $HOME)"
+nnn="$(basename "$hometop")"
+special_user=0
+case "$nnn" in
+	900|903)
+		special_user=1
+		debug echo "$USER is special"
+		;;
+	*)
+		debug echo "$USER is normal"
+		;;
+esac
+
+export ENV=/opt/bin/kshenv
+export BASH_ENV=/opt/bin/bashenv
+
+
+if [ x"$1" = x"-c" ]; then
+	interactive="n"
+else
+	interactive="y"
+fi
+debug echo "interactive=\"$interactive\""
+
+
+if [ $special_user = 0 ] ; then
+   if [ x"$NOLOGIN" != x ] ; then
+      debug echo "$USER cannot login: $NOLOGIN"
+      echo $NOLOGIN 1>&2
+      exit 1
+   fi
+fi
+
+
+groups=($(groups))
+debug echo "groups=${groups[@]}"
+if [ "${#groups[@]}" -eq 0 ]; then
+	debug echo "no groups, cannot login!"
+	echo "nfsh: ERROR: User $USER is not a member of any groups, cannot login." 1>&2
+	echo "nfsh: Your user account does not appear to be configured correctly." 1>&2
+	echo "nfsh: Please contact help@nf.nci.org.au to have this problem fixed." 1>&2
+	exit 1
+fi
+
+projects=()
+for i in "${groups[@]}"; do
+	if is_valid_project "$i"; then
+		projects+=("$i")
+	fi
+done
+debug echo "projects=${projects[@]}"
+if [ "${#projects[@]}" -eq 0 ]; then
+	debug echo "no projects, cannot login!"
+	echo "nfsh: ERROR: User $USER is not a member of any valid projects, cannot login." 1>&2
+	echo "nfsh: Your user account does not appear to be configured correctly." 1>&2
+	echo "nfsh: Please contact help@nf.nci.org.au to have this problem fixed." 1>&2
+	exit 1
+fi
+
+prospective_shells=(/bin/bash /bin/ksh /bin/tcsh)
+debug echo "prospective_shells=${prospective_shells[@]}"
+shells=()
+for i in "${prospective_shells[@]}"; do
+	if [ -x "$i" ]; then
+		shells+=("$i")
+	fi
+done
+debug echo "shells=${shells[@]}"
+if [ "${#shells[@]}" -eq 0 ]; then
+	debug echo "no shells, cannot login!"
+	echo "nfsh: ERROR: no valid shells found, cannot login." 1>&2
+	echo "nfsh: Your user account does not appear to be configured correctly." 1>&2
+	echo "nfsh: Please contact help@nf.nci.org.au to have this problem fixed." 1>&2
+	exit 1
+fi
+
+
+DEFAULT_PROJECT="${projects[0]}"
+DEFAULT_SHELL="${shells[0]}"
+debug echo "DEFAULT_PROJECT=\"$DEFAULT_PROJECT\""
+debug echo "DEFAULT_SHELL=\"$DEFAULT_SHELL\""
+
+
+rashrc_PROJECT=""
+rashrc_SHELL=""
+if [ -r "$HOME/.rashrc" ]; then
+	while read w1 w2 w3; do
+		case "$w1" in
+			setenv)
+				case "$w2" in
+					PROJECT)
+						rashrc_PROJECT="$w3"
+						;;
+					SHELL)
+						rashrc_SHELL="$w3"
+						;;
+				esac
+		esac
+	done < "$HOME/.rashrc"
+fi
+debug echo "rashrc_PROJECT=\"$rashrc_PROJECT\""
+debug echo "rashrc_SHELL=\"$rashrc_SHELL\""
+
+
+# Pre-set NFSHELL and PROJECT (via sshd_config AcceptEnv) take precedence.
+# (Cannot use SHELL since that is set to /opt/bin/nfsh.)
+if [ x"$NFSHELL" = "x" ]; then
+	SHELL="$rashrc_SHELL"
+	preset_SHELL=n
+else
+	case "$NFSHELL" in
+		*/*)
+			;;
+		*)
+			NFSHELL="/bin/$NFSHELL"
+			;;
+	esac
+	SHELL="$NFSHELL"
+	preset_SHELL=y
+fi
+debug echo "preset_SHELL=\"$preset_SHELL\""
+debug echo "(initial) SHELL=\"$SHELL\""
+if [ x"$PROJECT" = "x" ]; then
+	PROJECT="$rashrc_PROJECT"
+	preset_PROJECT=n
+else
+	preset_PROJECT=y
+fi
+debug echo "preset_PROJECT=\"$preset_PROJECT\""
+debug echo "(initial) PROJECT=\"$PROJECT\""
+
+
+
+check_validity SHELL is_valid_shell prompt_user_for_valid_shell
+check_validity PROJECT is_valid_user_project prompt_user_for_valid_project
+
+if is_interactive; then
+	set -- -l
+fi
+
+export PROJECT
+
+if is_interactive; then
+	debug echo "Starting interactive $SHELL login in project $PROJECT"
+else
+	debug echo "Starting non-interactive $SHELL login in project $PROJECT"
+fi
+
+debug echo exec /opt/bin/nfnewgrp "$PROJECT" "$SHELL" "$@"
+exec /opt/bin/nfnewgrp "$PROJECT" "$SHELL" "$@"
+
+

@@ -1,0 +1,52 @@
+#!/usr/bin/python
+
+# The thinnest wrapper around setuid(2) and setgid(2) you'll ever see.
+# The issue is that I can't run "su $username -c ..." from inside
+# the mkhomedir_helper wrapper, since then su will invoke pam, which
+# will run the mkhomedir_helper wrapper again, ad infinitum.
+
+# FIXME: put this stupid thing onto github, where it belongs.
+
+import sys
+import os
+import pwd
+
+if len(sys.argv) < 3:
+	print "Usage:"
+	print "  setuid user command [args ...]"
+	print "      Change user to 'user', group to the user's primary group, then run 'command [args ...]'."
+	print "  setuid user.group command [args ...]"
+	print "      Change user to 'user', group to 'group', then run 'command [args ...]'."
+	print "  setuid .group command [args ...]"
+	print "      Change group to 'group', then run 'command [args ...]'."
+	sys.exit(1)
+
+try:
+	loc = sys.argv[1].index('.')
+	username = sys.argv[1][:loc]
+	groupname = sys.argv[1][loc+1:]
+except ValueError:
+	username = sys.argv[1]
+	groupname = ""
+
+if username:
+	user = pwd.getpwnam(username)
+	uid = user.pw_uid
+
+if groupname:
+	import grp
+	group = grp.getgrnam(groupname)
+	gid = group.gr_gid
+else:
+	if username:
+		gid = user.pw_gid
+	else:
+		print "What a lonely dot."
+		sys.exit(1)
+
+os.setgid(gid)
+os.setgroups([gid])
+if username:
+	os.setuid(uid)
+
+os.execvp(sys.argv[2], sys.argv[2:])

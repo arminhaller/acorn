@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# Deal with the perculiarities of root_squash.
+
+#exec > /tmp/mkhomedir_helper-$$ 2>&1
+#set -x
+
+setuid=/sbin/setuid
+
+if [ $# -ge 1 ]; then
+	# Okay, try it.
+	# If it works, great.
+	# If it fails, then try doing rm -rf of the user's home directory,
+	# then try again after changing to be the user (and in the access.dev
+	# group).  We can't do this straight up since parent directories
+	# can't be created in that case.  Doing it this way lets parent dirs
+	# be created as root, but then when the chown() fails (which is after
+	# the parent dirs have been created), we try again as the user.
+	#
+	# In the mkhomedir_helper.c source, we would want to call setuid()
+	# (or seteuid()?) and setgid() in main(), between the call to
+	# make_parent_dirs() and create_homedir().
+	#
+	# Having home dirs on a root_squash nfs export precludes any files
+	# in /etc/skel that aren't readable by the user (eg. mode 600).
+	# Without a functioning chown(), there is no way around this, sorry.
+
+	if [ ! -x $setuid ]; then
+		# Not going to be able to do anything, so just bail.
+		exec /sbin/mkhomedir_helper.real "$@"
+	fi
+
+	g=""
+	if [ -r /etc/squashed_mounts ]; then
+		g="$(awk -v mountpoint="/home" '$1 == mountpoint { print $2; exit }' /etc/squashed_mounts)"
+	fi
+	if [ "$g" = "" ]; then
+		# Not going to be able to do anything, so just bail.
+		exec /sbin/mkhomedir_helper.real "$@"
+	fi
+
+	if $setuid ."$g" /sbin/mkhomedir_helper.real "$@"; then
+		# Great
+		exit $?
+	else
+		homedir="$(getent passwd "$1" | awk -F: '{print $6}')"
+		$setuid ."$g"  rm -rf "$homedir"
+		# Need to temporarily allow write permission as the user
+		# to their immediate parent directory - otherwise, the mkdir()
+		# will fail.
+		chmod g+w,o+t "${homedir%/*}"
+		$setuid "$1"."$g" /sbin/mkhomedir_helper.real "$@"
+		rc="$?"
+		# Undo the perms on the immediate parent directory.
+		chmod g-w,o-t "${homedir%/*}"
+		exit "$rc"
+	fi
+else
+	# No user specified, this sure isn't valid but I don't want to
+	# touch it, so just pass it through.
+	exec /sbin/mkhomedir_helper.real "$@"
+fi
+

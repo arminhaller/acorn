@@ -1,0 +1,11 @@
+
+if [ x"${KSHENV_RUN-unset}" = "xunset" ]; then
+	KSHENV_RUN=y
+
+	if [ -e "$HOME"/.kshrc ]; then
+		. "$HOME"/.kshrc
+	elif [ -e /etc/kshrc ]; then
+		. /etc/kshrc
+	fi
+fi
+

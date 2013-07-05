@@ -1,0 +1,3 @@
+XVFB_OUTPUT=/var/log/Xvfb.100.log
+#XVFB_OPTIONS=":100 -auth /etc/xvfb-auth.conf -nolisten tcp -shmem"
+XVFB_OPTIONS=":100 -screen 0 1280x1024x24 -auth /etc/xvfb-auth.conf -shmem"

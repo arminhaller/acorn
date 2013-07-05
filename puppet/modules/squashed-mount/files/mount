@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Deal with the perculiarities of root_squash.
+
+prefix=()
+if [ $# -eq 3 -a "$1" = "-o" -a \( "$2" = "bind" -o "$2" = "remount" \) ]; then
+	# If the mountpoint given in $3 is listed in /etc/squashed_mounts,
+	# then use the specified group from there when running mount.
+	g=""
+	if [ -r /etc/squashed_mounts ]; then
+		g="$(awk -v mountpoint="$3" '$1 == mountpoint { print $2; exit }' /etc/squashed_mounts)"
+	fi
+	if [ "$g" != "" ]; then
+		prefix=(/sbin/setuid ."$g")
+	fi
+fi
+
+exec "${prefix[@]}" /bin/mount "$@"

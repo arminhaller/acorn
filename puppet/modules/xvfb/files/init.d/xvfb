@@ -1,0 +1,59 @@
+#!/bin/bash
+#
+# /etc/rc.d/init.d/xvfb
+#
+# chkconfig: 345 98 90
+# description: Virtual Framebuffer
+#
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Find the name of the script
+NAME=xvfb
+
+# Set defaults for configuration variables
+XVFB_OUTPUT=/var/log/Xvfb.50.log
+XVFB=/usr/bin/Xvfb
+XVFB_OPTIONS=":50 -auth /etc/xvfb-auth.conf -nolisten tcp -shmem"
+XVFB_PIDFILE=/var/run/${NAME}.pid
+
+# Override defaults from /etc/sysconfig/xvfb if file is present
+[ -f /etc/sysconfig/${NAME} ] && . /etc/sysconfig/${NAME}
+
+# Source function library.
+. /etc/init.d/functions
+
+start() {
+    echo -n "Starting : X Virtual Frame Buffer"
+#    /usr/local/sbin/start-stop-daemon --start --quiet --pidfile $XVFB_PIDFILE --make-pidfile --background --exec $XVFB -- $XVFB_OPTIONS
+    daemon $XVFB >/dev/null 2>&1  $XVFB_OPTIONS \&
+    echo
+}
+
+stop() {
+    echo -n "Shutting down : X Virtual Frame Buffer"
+#    /usr/local/sbin/start-stop-daemon --stop --quiet --pidfile $XVFB_PIDFILE
+    killproc $XVFB
+    echo
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $XVFB
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)  
+        echo "Usage: $NAME {start|stop|status|restart}"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,95 @@
+#!/bin/bash
+
+mkdir -p /var/log
+
+(
+
+
+# Verbosely output commands
+#===========================
+set -x
+
+
+# Fix the system clock
+#======================
+
+mv -f /etc/localtime /etc/localtime.old
+ln -s /usr/share/zoneinfo/Australia/Canberra /etc/localtime
+/sbin/clock -u --hctosys
+
+
+# Install ssh keys
+#==================
+old_umask=`umask`
+umask 077
+mkdir -p /root/.ssh
+# Insert repoaccess ssh private key here.
+cat <<EOF > /root/.ssh/id_rsa
+___REPOACCESS_PRIVATE_KEY___
+EOF
+# Add the host key for the repos machine into known_hosts.
+cat <<EOF >> /root/.ssh/known_hosts
+___REPOS_KNOWN_HOSTS_ENTRY___
+EOF
+umask $old_umask
+
+
+# Set the hostname
+#==================
+name="___NAME___"
+case "$name" in
+	*.*) ;;
+	*) name="$name.local" ;;
+esac
+hostname "$name"
+# (Perhaps also edit /etc/sysconfig/network and then run "service network restart")
+ip="___IP___"
+if [ "$ip" = "" ]; then
+	ip="$(ip addr show dev eth0 | awk '$1=="inet"{print gensub("/.*$", "", "", $2)}')"
+fi
+echo "$ip    $name" >> /etc/hosts
+
+
+# Ensure that a working nameserver is present
+#=============================================
+# (This is mainly for Ubuntu images.)
+# (Later - get this from the system that tools/nova-boot is being run from?)
+if [ -e /etc/dhcp/dhclient.conf ]; then
+	echo "prepend domain-name-servers 150.203.5.121;" >> /etc/dhcp/dhclient.conf 
+	ifdown eth0 ; ifup eth0
+fi
+
+
+# Ensure that git and puppet are installed
+#==========================================
+yum -y install git puppet || aptitude -y install git puppet
+
+
+# Propagate git user settings
+#=============================
+export HOME=/root
+git config --global user.name '___GIT_NAME___'
+git config --global user.email '___GIT_EMAIL___'
+
+
+# Clone and apply the Puppet repository
+#=======================================
+cd /etc
+[ -e puppet ] && rm -rf puppet.old && mv -i puppet puppet.old
+git clone -b ___BRANCH___ ___REPO___ puppet
+ln -s /etc/puppet /puppet
+cd /puppet
+git submodule init
+git submodule update
+# Hide the private repo here, just to be sure.
+chmod 700 /puppet/private
+puppet apply /puppet/manifests/site.pp
+# Once more shouldn't hurt, and might help to mitigate any issues with transient package repository server failures.
+puppet apply /puppet/manifests/site.pp
+
+
+# From this point, Puppet should be able to handle everything.
+
+
+) 2>&1 | tee /var/log/userdata.log
+

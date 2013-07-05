@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ "$1" = test -a "$SKIP_TESTS" = y ]; then
+	:
+else
+	exec /usr/bin/make "$@"
+fi
+

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Run this from the base Puppet repository directory.
+
+dir="private/keys/hostkeys"
+
+if [ ! -d "${dir%/*}" ]; then
+	echo "Error: Cannot find ${dir%/*}"
+	echo "Did you run this from the base Puppet repository directory?"
+	exit 1
+fi
+
+function genkey {
+	local type="$1"
+	local fname="$dir/$2"
+	mkdir -p "${fname%/*}"
+	if [ ! -r "$fname" ]; then
+		ssh-keygen -t "$type" -f "$fname" -N '' 
+	fi
+}
+
+if [ $# -eq 0 ]; then
+	genkey rsa1  ssh_host_key
+	genkey dsa   ssh_host_dsa_key
+	genkey rsa   ssh_host_rsa_key
+	#genkey ecdsa ssh_host_ecdsa_key
+else
+	for i; do
+		genkey rsa1  "$i"/ssh_host_key
+		genkey dsa   "$i"/ssh_host_dsa_key
+		genkey rsa   "$i"/ssh_host_rsa_key
+		#genkey ecdsa "$i"/ssh_host_ecdsa_key
+	done
+fi
+

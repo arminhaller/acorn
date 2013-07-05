@@ -1,0 +1,275 @@
+#!/bin/bash
+
+# Run this from the base Puppet repository directory.
+
+function usage {
+	echo "Usage:"
+	echo "    tools/nova-boot --name <vm-name> --repo <repo> [--branch <branch>]"
+	echo "                   [--ip <ip-address>] -- <standard-nova-boot-args> ..."
+	echo "where"
+	echo "  <vm-name> is the name of the VM, usually a FQDN hostname"
+	echo "  <repo> is the location of the Puppet repository, usually in the form"
+	echo "         git@repos.nci.org.au:p/PROJECT/puppet"
+	echo "  <branch> is an optional branch of the repo to use"
+	echo "  <ip-address> is an optional public IP address to use"
+	echo ""
+	echo "Must be run from the top-level of the git repository."
+	echo ""
+	exit ${1:-0}
+}
+
+if [ "$1" = "-h" -o "$1" = "--help" ]; then
+	usage 0
+fi
+
+if [ ! -x "tools/nova-boot" ]; then
+	echo "Error: Cannot find \"tools/nova-boot\"."
+	echo "Did you run this from the base Puppet repository directory?"
+	exit 1
+fi
+if [ ! -r "tools/userdata-template" ]; then
+	echo "Error: Cannot find \"tools/userdata-template\"."
+	echo "Did you run this from the base Puppet repository directory?"
+	exit 1
+fi
+if [ ! -r ".git/config" ]; then
+	echo "Error: Cannot find \".git/config\"."
+	echo "Did you run this from the base Puppet repository directory?"
+	exit 1
+fi
+
+git_name="$(git config --get user.name)"
+if [ "$git_name" = "" ]; then
+	echo "Error: your name has not been set in git."
+	echo "Consider running: git config user.name \"Firstname Lastname\""
+	exit 1
+fi
+git_email="$(git config --get user.email)"
+if [ "$git_email" = "" ]; then
+	echo "Error: your email address has not been set in git."
+	echo "Consider running: git config user.email your@email.address.com"
+	exit 1
+fi
+
+if [ -e "private" -a ! -d "private" ]; then
+	echo "Error: \"private\" is not a directory."
+	echo "Did you run this from the base Puppet repository directory?"
+	echo "\"private\" must be a git submodule."
+	exit 1
+fi
+if [ ! -d "private" ]; then
+	echo "Error: There is no directory called \"private\"."
+	echo "Did you run this from the base Puppet repository directory?"
+	echo "\"private\" must be a git submodule."
+	exit 1
+fi
+if ! git submodule | awk '$2=="private"{found = 1} END { exit(!found) }'; then
+	echo "Error: The \"private\" directory is not a git submodule."
+	echo "Did you run this from the base Puppet repository directory?"
+	echo "\"private\" must be a git submodule."
+	exit 1
+fi
+if [ ! -d "private/.git" ]; then
+	echo "Error: The \"private\" submodule has not been initialised."
+	echo "Consider running:"
+	echo "    git submodule init"
+	echo "    git submodule update"
+	exit 1
+fi
+
+private_git_name="$(cd private ; git config --get user.name)"
+if [ "$private_git_name" = "" ]; then
+	echo "Error: your name has not been set in the \"private\" submodule."
+	echo "Consider running: cd private ; git config user.name \"\$(cd .. ; git config --get user.name)\" ; cd .."
+	exit 1
+fi
+if [ "$private_git_name" != "$git_name" ]; then
+	echo "Error: your name in the \"private\" submodule does not match the main repo."
+	echo "Consider running: cd private ; git config user.name \"\$(cd .. ; git config --get user.name)\" ; cd .."
+	exit 1
+fi
+
+private_git_email="$(cd private ; git config --get user.email)"
+if [ "$private_git_email" = "" ]; then
+	echo "Error: your email has not been set in the \"private\" submodule."
+	echo "Consider running: cd private ; git config user.email \"\$(cd .. ; git config --get user.email)\" ; cd .."
+	exit 1
+fi
+if [ "$private_git_email" != "$git_email" ]; then
+	echo "Error: your email in the \"private\" submodule does not match the main repo."
+	echo "Consider running: cd private ; git config user.email \"\$(cd .. ; git config --get user.email)\" ; cd .."
+	exit 1
+fi
+
+if [ ! -d "private/keys" ]; then
+	echo "Error: Cannot find the \"private/keys\" directory."
+	echo "Consider running:"
+	echo "    mkdir private/keys"
+	echo "    ssh-keygen -t rsa -f private/keys/repoaccess"
+	echo "    cd private"
+	echo "    git add keys"
+	echo "    git commit -m \"Added repoaccess keys\""
+	echo "    git push"
+	echo "    cd .."
+	echo "    git commit -a -m \"Updated private repo\""
+	echo "    git push"
+	exit 1
+fi
+
+if [ ! -e private/keys/repoaccess -o ! -e private/keys/repoaccess.pub ]; then
+	echo "Error: repoaccess private or public key (private/keys/repoaccess(.pub)) does not exist."
+	echo "Consider running:"
+	echo "    ssh-keygen -t rsa -f private/keys/repoaccess"
+	echo "    cd private"
+	echo "    git add keys"
+	echo "    git commit -m \"Added repoaccess keys\""
+	echo "    git push"
+	echo "    cd .."
+	echo "    git commit -a -m \"Updated private repo\""
+	echo "    git push"
+	exit 1
+fi
+
+if [ ! -f private/keys/repoaccess -o ! -f private/keys/repoaccess.pub ]; then
+	echo "Error: repoaccess private or public keys (private/keys/repoaccess(.pub)) are not regular files."
+	echo "You'll need to fix this on your own..."
+	exit 1
+fi
+
+if [ ! -r private/keys/repoaccess -o ! -r private/keys/repoaccess.pub ]; then
+	echo "Error: repoaccess private or public keys (private/keys/repoaccess(.pub)) are not readable."
+	echo "Consider running:"
+	echo "    chmod 700 private private/keys"
+	echo "    chmod 600 private/keys/repoaccess"
+	echo "    chmod 644 private/keys/repoaccess.pub"
+	exit 1
+fi
+
+if [ "$(stat -c '%a' private/keys/repoaccess)" != "600" ]; then
+	echo "Warning: repoaccess private key (private/keys/repoaccess) is not mode 0600."
+	echo "Did you forget to run \"umask 0077\" before working with the repository?"
+	echo "Notice: To protect the privacy of the repo, automatically running:"
+	echo "    chmod 600 private/keys/repoaccess"
+	chmod 600 private/keys/repoaccess
+	echo "    chmod 700 ."
+	chmod 700 .
+	echo "To protect the whole repository, consider running:"
+	echo "    chmod -R go= ."
+fi
+
+repoaccess_private_key="$(awk '{if(NR==1)t=$0; else t=t"\\\n"$0;} END{ printf("%s",t)}' private/keys/repoaccess)"
+if [ "$repoaccess_private_key" = "" ]; then
+	echo "Error: repoaccess private key (private/keys/repoaccess) is empty."
+	echo "Consider running:"
+	echo "    ssh-keygen -t rsa -f private/keys/repoaccess"
+	echo "    cd private"
+	echo "    git add keys"
+	echo "    git commit -m \"Added repoaccess keys\""
+	echo "    git push"
+	echo "    cd .."
+	echo "    git commit -a -m \"Updated private repo\""
+	echo "    git push"
+	exit 1
+fi
+
+if [ $# -eq 0 ]; then
+	echo "Usage:"
+	echo "    tools/nova-boot --name <vm-name> --repo <repo> [--branch <branch>]"
+	echo "                   [--ip <ip-address>] -- <standard-nova-boot-args> ..."
+	echo "where"
+	echo "  <vm-name> is the name of the VM, usually a FQDN hostname"
+	echo "  <repo> is the location of the Puppet repository, usually in the form"
+	echo "         git@repos.nci.org.au:p/PROJECT/puppet"
+	echo "  <branch> is an optional branch of the repo to use (defaults to master)"
+	echo "  <ip-address> is an optional public IP address to use (defaults to no public IP)"
+	echo ""
+	echo "Must be run from the top-level of the git repository."
+	echo ""
+	exit 0
+fi
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--name=*|--repo=*|--branch=*|--ip=*)
+			n="${1#--}"
+			n="${n%%=*}"
+			v="${1#*=}"
+			eval "$n=\"$v\""
+			shift
+			;;
+		--name|--repo|--branch|--ip)
+			eval "${1#--}=\"$2\""
+			shift 2
+			;;
+		--)
+			shift
+			break
+			;;
+		*)
+			echo "Error: unknown parameter: \"$1\""
+			exit 1
+			;;
+	esac
+done
+if [ "$name" = "" -o "$repo" = "" ]; then
+	echo "Error: --name and --repo are mandatory"
+	exit 1
+fi
+if [ "$branch" = "" ]; then
+	branch="master"
+fi
+
+# Need to extract the hostname part out of the repo, and then
+# query it for its hostkey.
+repo_userhost="${repo%%:*}"
+case "$repo_userhost" in
+	*@*)
+		repo_host="${repo_userhost#*@}"
+		;;
+	*)
+		repo_host="$repo_userhost"
+		;;
+esac
+repos_known_hosts_entry="$(ssh-keyscan -t rsa "$repo_host")"
+
+if [ "$repos_known_hosts_entry" = "" ]; then
+	echo "Error: Unable to get public ssh host key for the machine hosting the repository."
+	echo "Did you specify the correct repo?"
+	echo "Is the host contactable and not down?"
+	echo "Maybe you need to use a fully-qualified hostname, or an IP address?"
+	exit 1
+fi
+
+if ! SSH_AUTH_SOCK= ssh -i private/keys/repoaccess -o NumberOfPasswordPrompts=0 "${repo_userhost}" info > /dev/null 2>&1; then
+	echo "Error: Unable to login to the repo machine with the repoaccess key."
+	echo "Has the key been added to the repo machine?"
+	echo "    If not, consider running: ssh ${repo_host} authkeys add \"\$(cat private/keys/repoaccess.pub)\""
+	echo "Did you specify the correct repo?"
+	echo "Is the host contactable and not down?"
+	echo "Maybe you need to use a fully-qualified hostname, or an IP address?"
+	exit 1
+fi
+
+
+userdata="$(sed \
+	-e 's,___NAME___,'"$name"',g' \
+	-e 's,___REPO___,'"$repo"',g' \
+	-e 's,___BRANCH___,'"$branch"',g' \
+	-e 's,___IP___,'"$ip"',g' \
+	-e 's,___GIT_NAME___,'"$git_name"',g' \
+	-e 's,___GIT_EMAIL___,'"$git_email"',g' \
+	-e 's,^___REPOACCESS_PRIVATE_KEY___$,'"$repoaccess_private_key"',' \
+	-e 's,^___REPOS_KNOWN_HOSTS_ENTRY___$,'"$repos_known_hosts_entry"',' \
+	tools/userdata-template)"
+
+nova boot "$name" --user_data <(echo "$userdata") --poll "$@"
+rc=$?
+if [ $rc != 0 ]; then
+	exit $rc
+fi
+if [ "$ip" != "" ]; then
+	# FIXME: this ought to be possible in nova boot - but how??
+	nova add-floating-ip "$name" "$ip"
+fi
+nova list --name "$name"
+
